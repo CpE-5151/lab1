@@ -88,13 +88,14 @@ DISPLAY_VALUE
 ; _______________________________________________________________________
 DELAY_MS
 	PUSH {R14}
-	MOV R3, #4000
+	MOV R3, #1000
 	MUL R1, R0, R3	; number of loops (4000*ms_delay)
 	MOV R2, #0 		; loop counter
 
 LOOP CMP R1, R2		; loop until counter == number of loops
 	BEQ DELAY_DONE
 	ADD R2, R2, #1	; increment counter
+	B LOOP
 	
 DELAY_DONE	
 	POP {R14}
@@ -106,6 +107,12 @@ DELAY_DONE
 ; _______________________________________________________________________
 PB_INIT
 	PUSH {R14}
+	
+	LDR R0, =RCC_BASE
+	LDR R1, [R0, #RCC_AHB2ENR]
+	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIOCEN)      ; Enables clock for GPIOC
+	STR R1, [R0, #RCC_AHB2ENR]
+	
 	LDR R0, =GPIOC_BASE			; Base address for GPIOC
 	
 	; set PC13 to input
@@ -135,7 +142,7 @@ PB_READ_LOOP
 	TST R1, #(1<<13)		; check PC13 for button press
 	MOV R0, #50
 	;BNE PB_READ_LOOP
-	BNE DELAY_MS
+	;BNE DELAY_MS
 	
 	LDR R0, =GPIOC_BASE		; Base address for GPIOC
 	LDR R1, [R0, #GPIO_IDR]	; read Port C IDR
@@ -157,6 +164,11 @@ PB_READ_LOOP
 LED_INIT
 	PUSH {R14}
 	
+	LDR R0, =RCC_BASE
+	LDR R1, [R0, #RCC_AHB2ENR]
+	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIOEEN) ; Enables clock for GPIOE
+	STR R1, [R0, #RCC_AHB2ENR]
+	
 	; set PE9 to output
 	LDR R0, =GPIOE_BASE			; base address for GPIOE
 	LDR R2, [R0, #GPIO_MODER]	; read Port E MODE register
@@ -171,7 +183,7 @@ LED_INIT
 	
 	; disable pull-up/pull-down resistors
 	LDR R2, [R0, #GPIO_PUPDR]	; read Port E PU-PD register
-	BIC R2, R2, #(3 << (2*12))	; clear PE9 PU-PD bits (disabled)
+	BIC R2, R2, #(3 << (2*9))	; clear PE9 PU-PD bits (disabled)
 	STR R2, [R0, #GPIO_PUPDR]	; write Port E PU-PD register
 	
 	POP {R14}
@@ -186,7 +198,9 @@ LED_WRITE
 	
 	LDR R1, =GPIOE_BASE		; base address for GPIOE
 	LDR R2, [R1, #GPIO_ODR]	; read Port E OUTPUT DATA register
-	LSL R0, R0, #9			; shift value to pin 9
+	BIC R2, #(1<<9)			; clear pin 9 output bit
+	
+	LSL R0, R0, #9			; shift input value to pin 9
 	ORR R2, R2, R0
 	STR R2, [R1, #GPIO_ODR]	; write Port E OUTPUT DATA register
 	
