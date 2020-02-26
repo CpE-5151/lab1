@@ -8,6 +8,7 @@
 
         AREA program, CODE, READONLY
 		EXPORT ASSEMBLY_INIT
+		EXPORT KEYPAD_INIT
 		EXPORT DISPLAY_VALUE
 		EXPORT DELAY_MS
 		EXPORT PB_INIT
@@ -104,6 +105,7 @@ DELAY_DONE
 
 
 ; PROBLEM #4
+; TODO: STR to GPIOC registers does not work!
 ; _______________________________________________________________________
 PB_INIT
 	PUSH {R14}
@@ -113,12 +115,11 @@ PB_INIT
 	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIOCEN)      ; Enables clock for GPIOC
 	STR R1, [R0, #RCC_AHB2ENR]
 	
-	LDR R0, =GPIOC_BASE			; Base address for GPIOC
-	
 	; set PC13 to input
-	LDR R1, [R0, #GPIO_MODER]	; read Port C MODE register
-	BIC R1, R1, #(3 << (2*13))	; set PC13 MODE bits to '00' (input)
-	STR R1, [R0, #GPIO_MODER]	; write Port C MODE register
+	LDR R0, =GPIOC_BASE			; base address for GPIOC
+	LDR R2, [R0, #GPIO_MODER]	; read Port C MODE register
+	BIC R2, R2, #(3 << (2*13))	; clear PC13 MODE bits
+	STR R2, [R0, #GPIO_MODER]	; write Port C MODE register
 	
 	; set PC13 to pull-down
 	LDR R1, [R0, #GPIO_PUPDR]	; read Port C PU-PD register
@@ -149,8 +150,11 @@ PB_READ_LOOP
 	TST R1, #(1<<13)		; check PC13 for button press
 	;BNE PB_READ_LOOP
 	
-	ADD R3, R3, #1
-	MOV R0, R3
+	MOV R0, #0
+	LDR R7, =DISPLAY_VAL
+	ADD R0, R0, R7
+	ADD R0, R0, #1
+	STR R0, [R7]
 	B DISPLAY_VALUE
 	B PB_READ_LOOP
 	
@@ -209,6 +213,69 @@ LED_WRITE
 ; _____end PROBLEM #7___________________________________________________
 
 
+; PROBLEM #8
+; TODO: STR to GPIOC and GPIOD registers does not work!
+; _______________________________________________________________________
+KEYPAD_INIT
+	PUSH {R14}
+	
+	; Enable clock for GPIOC
+	LDR R0, =RCC_BASE
+	LDR R1, [R0, #RCC_AHB2ENR]
+	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIOCEN)
+	STR R1, [R0, #RCC_AHB2ENR]
+	
+	; set PC0, PC1, PC3, PC4 to input
+	LDR R0, =GPIOC_BASE			; base address for GPIOC
+	LDR R2, [R0, #GPIO_MODER]	; read Port C MODE register
+	BIC R2, R2, #(3 << (2*0))	; clear PC0 MODE bits to '00' (input)
+	BIC R2, R2, #(3 << (2*1))	; clear PC1 MODE bits to '00' (input)
+	BIC R2, R2, #(3 << (2*3))	; clear PC3 MODE bits to '00' (input)
+	BIC R2, R2, #(3 << (2*4))	; clear PC4 MODE bits to '00' (input)
+	STR R2, [R0, #GPIO_MODER]	; write Port C MODE register
+	
+	; disable pull-up / pull-down resistors for PC0, PC1, PC3, PC4
+	LDR R2, [R0, #GPIO_PUPDR]	; read Port F PU-PD register
+	BIC R2, R2, #(3 << (2*0))	; clear PC0 PU-PD bits (disabled)
+	BIC R2, R2, #(3 << (2*1))	; clear PC1 PU-PD bits (disabled)
+	BIC R2, R2, #(3 << (2*3))	; clear PC3 PU-PD bits (disabled)
+	BIC R2, R2, #(3 << (2*4))	; clear PC4 PU-PD bits (disabled)
+	STR R2, [R0, #GPIO_PUPDR]	; write Port F PU-PD register
+	
+	; Enable clock for GPIOD
+	LDR R0, =RCC_BASE
+	LDR R1, [R0, #RCC_AHB2ENR]
+	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIODEN)
+	STR R1, [R0, #RCC_AHB2ENR]
+	
+	; set PD8, PD9, PD14, PD15 to output
+	LDR R0, =GPIOD_BASE			; base address for GPIOD
+	LDR R2, [R0, #GPIO_MODER]	; read Port D MODE register
+	BIC R2, R2, #(3 << (2*8))	; clear PD8 MODE bits to '00' (input)
+	BIC R2, R2, #(3 << (2*9))	; clear PD9 MODE bits to '00' (input)
+	BIC R2, R2, #(3 << (2*14))	; clear PD14 MODE bits to '00' (input)
+	BIC R2, R2, #(3 << (2*15))	; clear PD15 MODE bits to '00' (input)
+	ORR R2, R2, #(1 << (2*8))	; set PD8 MODE bits to '01' (output)
+	ORR R2, R2, #(1 << (2*9))	; set PD9 MODE bits to '01' (output)
+	ORR R2, R2, #(1 << (2*14))	; set PD14 MODE bits to '01' (output)
+	ORR R2, R2, #(1 << (2*15))	; set PD15 MODE bits to '01' (output)
+	STR R2, [R0, #GPIO_MODER]	; write Port D MODE register
+	
+	; set PD8, PD9, PD14, PD15 to open-drain output type
+	; open-drain output type gives pins high impedance at '1' state
+	; this protects from dangerous shorts when 2 buttons are pressed simultaneously
+	LDR R2, [R0, #GPIO_OTYPER]	; read Port D OUTPUT TYPE register
+	BIC R2, R2, #(0<<8)			; set PD8 OUTPUT TYPE bit to '1' (open-drain)
+	BIC R2, R2, #(0<<9)			; set PD9 OUTPUT TYPE bit to '1' (open-drain)
+	BIC R2, R2, #(0<<14)		; set PD14 OUTPUT TYPE bit to '1' (open-drain)
+	BIC R2, R2, #(0<<15)		; set PD15 OUTPUT TYPE bit to '1' (open-drain)
+	STR R2, [R0, #GPIO_OTYPER]	; write Port D OUTPUT TYPE register
+	
+	POP {R14}
+	BX R14
+; _____end PROBLEM #8___________________________________________________
+
+
     ; Area defined for variables, if needed.
 			AREA VARS, DATA, READWRITE
 		ALIGN
@@ -217,5 +284,4 @@ DISPLAY_VAL	DCB 0  ; display value
 	
 	
 	END
-		
 		

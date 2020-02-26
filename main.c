@@ -9,6 +9,7 @@
 extern void ASSEMBLY_INIT (void);
 extern void PB_INIT(void);
 extern void LED_INIT(void);
+extern void KEYPAD_INIT(void);
 extern void DISPLAY_VALUE (uint8_t);
 extern void DELAY_MS (int);
 extern void PB_READ(void);
@@ -19,6 +20,7 @@ int main (void)
 	ASSEMBLY_INIT();
 	PB_INIT();
 	LED_INIT();
+	KEYPAD_INIT();
 	while(1){
 	DISPLAY_VALUE(10);
 	DELAY_MS(1000);
@@ -27,6 +29,6 @@ int main (void)
 	DELAY_MS(1000);
 	LED_WRITE(0);
 	}
-	//PB_READ();
+	PB_READ();
 	while(1);
 }
