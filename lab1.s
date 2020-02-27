@@ -105,14 +105,13 @@ DELAY_DONE
 
 
 ; PROBLEM #4
-; TODO: STR to GPIOC registers does not work!
 ; _______________________________________________________________________
 PB_INIT
 	PUSH {R14}
 	
 	LDR R0, =RCC_BASE
 	LDR R1, [R0, #RCC_AHB2ENR]
-	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIOCEN)      ; Enables clock for GPIOC
+	ORR R1, R1, #(RCC_AHB2ENR_GPIOCEN)      ; Enables clock for GPIOC
 	STR R1, [R0, #RCC_AHB2ENR]
 	
 	; set PC13 to input
@@ -124,7 +123,7 @@ PB_INIT
 	; set PC13 to pull-down
 	LDR R1, [R0, #GPIO_PUPDR]	; read Port C PU-PD register
 	BIC R1, R1, #(3 << (2*13))	; clear PC13 PU-PD bits
-	ORR R1, R1, #(2 << (2*13))	; set PC13 MODE bits to '10' (pull-down)
+	ORR R1, R1, #(2 << 13)	; set PC13 MODE bits to '10' (pull-down)
 	STR R1, [R0, #GPIO_PUPDR]	; write Port C PU-PD register
 	
 	POP {R14}
@@ -141,21 +140,21 @@ PB_READ_LOOP
 	LDR R0, =GPIOC_BASE		; Base address for GPIOC
 	LDR R1, [R0, #GPIO_IDR]	; read Port C IDR
 	TST R1, #(1<<13)		; check PC13 for button press
-	MOV R0, #50
-	;BNE PB_READ_LOOP
-	;BNE DELAY_MS
+	MOV R0, #100
+	BEQ PB_READ_LOOP
+	BL DELAY_MS
 	
 	LDR R0, =GPIOC_BASE		; Base address for GPIOC
 	LDR R1, [R0, #GPIO_IDR]	; read Port C IDR
 	TST R1, #(1<<13)		; check PC13 for button press
-	;BNE PB_READ_LOOP
+	BEQ PB_READ_LOOP
 	
-	MOV R0, #0
-	LDR R7, =DISPLAY_VAL
-	ADD R0, R0, R7
-	ADD R0, R0, #1
-	STR R0, [R7]
-	B DISPLAY_VALUE
+	ADD R7, R7, #1
+	CMP R7, #16
+	MOVEQ R7, #0
+	MOV R0, R7
+	
+	BL DISPLAY_VALUE
 	B PB_READ_LOOP
 	
 	POP {R14}
@@ -170,7 +169,7 @@ LED_INIT
 	
 	LDR R0, =RCC_BASE
 	LDR R1, [R0, #RCC_AHB2ENR]
-	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIOEEN) ; Enables clock for GPIOE
+	ORR R1, R1, #(RCC_AHB2ENR_GPIOEEN) ; Enables clock for GPIOE
 	STR R1, [R0, #RCC_AHB2ENR]
 	
 	; set PE9 to output
@@ -214,7 +213,6 @@ LED_WRITE
 
 
 ; PROBLEM #8
-; TODO: STR to GPIOC and GPIOD registers does not work!
 ; _______________________________________________________________________
 KEYPAD_INIT
 	PUSH {R14}
@@ -222,7 +220,7 @@ KEYPAD_INIT
 	; Enable clock for GPIOC
 	LDR R0, =RCC_BASE
 	LDR R1, [R0, #RCC_AHB2ENR]
-	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIOCEN)
+	ORR R1, R1, #(RCC_AHB2ENR_GPIOCEN)
 	STR R1, [R0, #RCC_AHB2ENR]
 	
 	; set PC0, PC1, PC3, PC4 to input
@@ -245,7 +243,7 @@ KEYPAD_INIT
 	; Enable clock for GPIOD
 	LDR R0, =RCC_BASE
 	LDR R1, [R0, #RCC_AHB2ENR]
-	ORR R1, R1, #(1<<RCC_AHB2ENR_GPIODEN)
+	ORR R1, R1, #(RCC_AHB2ENR_GPIODEN)
 	STR R1, [R0, #RCC_AHB2ENR]
 	
 	; set PD8, PD9, PD14, PD15 to output

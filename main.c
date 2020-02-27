@@ -21,14 +21,14 @@ int main (void)
 	PB_INIT();
 	LED_INIT();
 	KEYPAD_INIT();
-	while(1){
-	DISPLAY_VALUE(10);
-	DELAY_MS(1000);
 	LED_WRITE(1);
-	DISPLAY_VALUE(0);
-	DELAY_MS(1000);
-	LED_WRITE(0);
-	}
 	PB_READ();
+	/*DISPLAY_VALUE(10);
+	LED_WRITE(1);
+	DELAY_MS(1000);
+	DISPLAY_VALUE(0);
+	LED_WRITE(0);
+	*/
+	
 	while(1);
 }
