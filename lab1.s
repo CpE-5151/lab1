@@ -7,6 +7,7 @@
         INCLUDE STM32L4R5xx_constants.inc
 
         AREA program, CODE, READONLY
+		EXPORT COUNTER_RUN
 		EXPORT ASSEMBLY_INIT
 		EXPORT KEYPAD_INIT
 		EXPORT DISPLAY_VALUE
@@ -17,9 +18,20 @@
 		EXPORT LED_WRITE
 		EXPORT KEYPAD_READ
 		ALIGN
+		
+COUNTER_RUN
+	PUSH{R14}
+	BL PB_READ
+	BL KEYPAD_READ
+	
+	POP {R14}
+	BX R14
 
 ASSEMBLY_INIT
 	PUSH {R14}
+	MOV R6, #1 ; initial increment value
+	MOV R7, #0 ; initial count value
+	MOV R8, #0 ; decrement flag
 	LDR R0, =RCC_BASE
 	LDR R1, [R0, #RCC_AHB2ENR]
 	ORR R1, R1, #(RCC_AHB2ENR_GPIOFEN)      ; Enables clock for GPIOF
@@ -142,22 +154,26 @@ PB_READ_LOOP
 	LDR R1, [R0, #GPIO_IDR]	; read Port C IDR
 	TST R1, #(1<<13)		; check PC13 for button press
 	MOV R0, #100
-	BEQ PB_READ_LOOP
+	;BEQ PB_READ_LOOP
+	BEQ PB_READ_DONE
 	BL DELAY_MS
 	
 	LDR R0, =GPIOC_BASE		; Base address for GPIOC
 	LDR R1, [R0, #GPIO_IDR]	; read Port C IDR
 	TST R1, #(1<<13)		; check PC13 for button press
-	BEQ PB_READ_LOOP
+	;BEQ PB_READ_LOOP
+	BEQ PB_READ_DONE
 	
-	ADD R7, R7, #1
+	CMP R8, #0
+	ADDEQ R7, R7, R6
+	SUBNE R7, R7, R6
 	CMP R7, #16
-	MOVEQ R7, #0
+	MOVHS R7, #0		; reset count to 0 if count >= 16
 	MOV R0, R7
 	
 	BL DISPLAY_VALUE
 	;B PB_READ_LOOP
-	
+PB_READ_DONE
 	POP {R14}
 	BX R14
 ; _____end PROBLEM #5___________________________________________________
@@ -318,6 +334,7 @@ READ_1
 	TST R1, #(1<<0)			; check PC0 for button press
 	BNE READ_2
 	BL LED_FLASH			; flash green LED
+	MOV R7, #1				; count value
 	MOV R0, #1				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -328,6 +345,7 @@ READ_2
 	TST R1, #(1<<1)			; check PC1 for button press
 	BNE READ_3
 	BL LED_FLASH			; flash green LED
+	MOV R7, #2				; count value
 	MOV R0, #2				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -338,6 +356,7 @@ READ_3
 	TST R1, #(1<<3)			; check PC3 for button press
 	BNE READ_A
 	BL LED_FLASH			; flash green LED
+	MOV R7, #3				; count value
 	MOV R0, #3				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -348,6 +367,7 @@ READ_A
 	TST R1, #(1<<4)			; check PC4 for button press
 	BNE READ_ROW_2
 	BL LED_FLASH			; flash green LED
+	MOV R6, #1				; set increment
 	MOV R0, #0xA			; return value
 	POP {R14}
 	BX R14
@@ -367,6 +387,7 @@ READ_4
 	TST R1, #(1<<0)			; check PC0 for button press
 	BNE READ_5
 	BL LED_FLASH			; flash green LED
+	MOV R7, #4				; count value
 	MOV R0, #4				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -377,6 +398,7 @@ READ_5
 	TST R1, #(1<<1)			; check PC1 for button press
 	BNE READ_6
 	BL LED_FLASH			; flash green LED
+	MOV R7, #5				; count value
 	MOV R0, #5				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -387,6 +409,7 @@ READ_6
 	TST R1, #(1<<3)			; check PC3 for button press
 	BNE READ_B
 	BL LED_FLASH			; flash green LED
+	MOV R7, #6				; count value
 	MOV R0, #6				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -397,6 +420,7 @@ READ_B
 	TST R1, #(1<<4)			; check PC4 for button press
 	BNE READ_ROW_3
 	BL LED_FLASH			; flash green LED
+	MOV R6, #2				; set increment
 	MOV R0, #0xB			; return value
 	POP {R14}
 	BX R14
@@ -416,6 +440,7 @@ READ_7
 	TST R1, #(1<<0)			; check PC0 for button press
 	BNE READ_8
 	BL LED_FLASH			; flash green LED
+	MOV R7, #7				; count value
 	MOV R0, #7				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -426,6 +451,7 @@ READ_8
 	TST R1, #(1<<1)			; check PC1 for button press
 	BNE READ_9
 	BL LED_FLASH			; flash green LED
+	MOV R7, #8				; count value
 	MOV R0, #8				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -436,6 +462,7 @@ READ_9
 	TST R1, #(1<<3)			; check PC3 for button press
 	BNE READ_C
 	BL LED_FLASH			; flash green LED
+	MOV R7, #9				; count value
 	MOV R0, #9				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -446,6 +473,7 @@ READ_C
 	TST R1, #(1<<4)			; check PC4 for button press
 	BNE READ_ROW_4
 	BL LED_FLASH			; flash green LED
+	MOV R6, #3				; set increment
 	MOV R0, #0xC			; display value
 	POP {R14}
 	BX R14
@@ -465,6 +493,7 @@ READ_ROW_4
 	TST R1, #(1<<0)			; check PC0 for button press
 	BNE READ_0
 	BL LED_FLASH			; flash green LED
+	MOV R8, #1				; set decrement flag
 	MOV R0, #0x0E			; return value
 	POP {R14}
 	BX R14
@@ -474,6 +503,7 @@ READ_0
 	TST R1, #(1<<1)			; check PC1 for button press
 	BNE READ_HASH
 	BL LED_FLASH			; flash green LED
+	MOV R7, #0				; count value
 	MOV R0, #0				; display value
 	BL DISPLAY_VALUE
 	POP {R14}
@@ -484,6 +514,7 @@ READ_HASH
 	TST R1, #(1<<3)			; check PC3 for button press
 	BNE READ_D
 	BL LED_FLASH			; flash green LED
+	MOV R8, #0				; clear decrement flag
 	MOV R0, #0x0F			; return value
 	POP {R14}
 	BX R14
@@ -491,12 +522,14 @@ READ_HASH
 READ_D
 	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
 	TST R1, #(1<<4)			; check PC4 for button press
-	BNE READ_ROW_1
+	BNE KEYPAD_READ_DONE
 	BL LED_FLASH			; flash green LED
+	MOV R6, #4				; set increment
 	MOV R0, #0xD			; return value
 	POP {R14}
 	BX R14
 	
+KEYPAD_READ_DONE
 	POP {R14}
 	BX R14
 ; _____end PROBLEM #9___________________________________________________

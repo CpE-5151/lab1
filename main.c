@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+extern void COUNTER_RUN(void);
 extern void ASSEMBLY_INIT (void);
 extern void PB_INIT(void);
 extern void LED_INIT(void);
@@ -22,18 +23,8 @@ int main (void)
 	PB_INIT();
 	LED_INIT();
 	KEYPAD_INIT();
+	
 	while(1){
-	KEYPAD_READ();
+		COUNTER_RUN();
 	}
-	/*while(1){
-	//PB_READ();
-	DISPLAY_VALUE(10);
-	LED_WRITE(0);
-	DELAY_MS(1000);
-	DISPLAY_VALUE(0);
-	LED_WRITE(1);
-	DELAY_MS(1000);
-	}
-	*/
-	while(1);
 }
