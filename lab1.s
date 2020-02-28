@@ -15,8 +15,9 @@
 		EXPORT PB_READ
 		EXPORT LED_INIT
 		EXPORT LED_WRITE
+		EXPORT KEYPAD_READ
 		ALIGN
-		
+
 ASSEMBLY_INIT
 	PUSH {R14}
 	LDR R0, =RCC_BASE
@@ -155,7 +156,7 @@ PB_READ_LOOP
 	MOV R0, R7
 	
 	BL DISPLAY_VALUE
-	B PB_READ_LOOP
+	;B PB_READ_LOOP
 	
 	POP {R14}
 	BX R14
@@ -249,10 +250,10 @@ KEYPAD_INIT
 	; set PD8, PD9, PD14, PD15 to output
 	LDR R0, =GPIOD_BASE			; base address for GPIOD
 	LDR R2, [R0, #GPIO_MODER]	; read Port D MODE register
-	BIC R2, R2, #(3 << (2*8))	; clear PD8 MODE bits to '00' (input)
-	BIC R2, R2, #(3 << (2*9))	; clear PD9 MODE bits to '00' (input)
-	BIC R2, R2, #(3 << (2*14))	; clear PD14 MODE bits to '00' (input)
-	BIC R2, R2, #(3 << (2*15))	; clear PD15 MODE bits to '00' (input)
+	BIC R2, R2, #(3 << (2*8))	; clear PD8 MODE bits
+	BIC R2, R2, #(3 << (2*9))	; clear PD9 MODE bits
+	BIC R2, R2, #(3 << (2*14))	; clear PD14 MODE bits
+	BIC R2, R2, #(3 << (2*15))	; clear PD15 MODE bits
 	ORR R2, R2, #(1 << (2*8))	; set PD8 MODE bits to '01' (output)
 	ORR R2, R2, #(1 << (2*9))	; set PD9 MODE bits to '01' (output)
 	ORR R2, R2, #(1 << (2*14))	; set PD14 MODE bits to '01' (output)
@@ -263,23 +264,248 @@ KEYPAD_INIT
 	; open-drain output type gives pins high impedance at '1' state
 	; this protects from dangerous shorts when 2 buttons are pressed simultaneously
 	LDR R2, [R0, #GPIO_OTYPER]	; read Port D OUTPUT TYPE register
-	BIC R2, R2, #(0<<8)			; set PD8 OUTPUT TYPE bit to '1' (open-drain)
-	BIC R2, R2, #(0<<9)			; set PD9 OUTPUT TYPE bit to '1' (open-drain)
-	BIC R2, R2, #(0<<14)		; set PD14 OUTPUT TYPE bit to '1' (open-drain)
-	BIC R2, R2, #(0<<15)		; set PD15 OUTPUT TYPE bit to '1' (open-drain)
+	ORR R2, R2, #(1<<8)			; set PD8 OUTPUT TYPE bit to '1' (open-drain)
+	ORR R2, R2, #(1<<9)			; set PD9 OUTPUT TYPE bit to '1' (open-drain)
+	ORR R2, R2, #(1<<14)		; set PD14 OUTPUT TYPE bit to '1' (open-drain)
+	ORR R2, R2, #(1<<15)		; set PD15 OUTPUT TYPE bit to '1' (open-drain)
 	STR R2, [R0, #GPIO_OTYPER]	; write Port D OUTPUT TYPE register
+	
+;	; set pull-up resistor for PD8, PD9, PD14, PD15
+;	LDR R2, [R0, #GPIO_PUPDR]	; read Port D PU-PD register
+;	BIC R2, R2, #(3 << (2*8))	; clear PC0 PU-PD bits (disabled)
+;	BIC R2, R2, #(3 << (2*9))	; clear PC1 PU-PD bits (disabled)
+;	BIC R2, R2, #(3 << (2*14))	; clear PC3 PU-PD bits (disabled)
+;	BIC R2, R2, #(3 << (2*15))	; clear PC4 PU-PD bits (disabled)
+;	ORR R2, R2, #(1<< (2*8))	; set PD8 PU-PD bits to '01' (pull-up)
+;	ORR R2, R2, #(1<< (2*9))	; set PD9 PU-PD bits to '01' (pull-up)
+;	ORR R2, R2, #(1<< (2*14))	; set PD14 PU-PD bits to '01' (pull-up)
+;	ORR R2, R2, #(1<< (2*15))	; set PD15 PU-PD bits to '01' (pull-up)
+;	STR R2, [R0, #GPIO_PUPDR]	; write Port D PU-PD register
 	
 	POP {R14}
 	BX R14
 ; _____end PROBLEM #8___________________________________________________
 
+LED_FLASH
+	PUSH{R14}
+	MOV R0, #1
+	BL LED_WRITE			; flash green LED
+	MOV R0, #250
+	BL DELAY_MS				; delay 250ms
+	MOV R0, #0
+	BL LED_WRITE			; turn off green LED
+	
+	POP {R14}
+	BX R14
+
+; PROBLEM #9
+; _______________________________________________________________________
+KEYPAD_READ
+	PUSH {R14}
+
+READ_ROW_1
+	LDR R2, =GPIOD_BASE		; Base address for GPIOD
+	MOV R1, #0xFFFF
+	STR R1, [R2, #GPIO_ODR]	; set all bits high
+	
+	LDR R1, [R2, #GPIO_ODR]	; read Port D ODR
+	BIC R1, R1, #(1<<8)		; set row 1 output
+	STR R1, [R2, #GPIO_ODR]	; write Port D ODR - row 1
+	LDR R2, =GPIOC_BASE		; Base address for GPIOC
+	
+READ_1
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<0)			; check PC0 for button press
+	BNE READ_2
+	BL LED_FLASH			; flash green LED
+	MOV R0, #1				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+	
+READ_2
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<1)			; check PC1 for button press
+	BNE READ_3
+	BL LED_FLASH			; flash green LED
+	MOV R0, #2				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+
+READ_3
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<3)			; check PC3 for button press
+	BNE READ_A
+	BL LED_FLASH			; flash green LED
+	MOV R0, #3				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+
+READ_A
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<4)			; check PC4 for button press
+	BNE READ_ROW_2
+	BL LED_FLASH			; flash green LED
+	MOV R0, #0xA			; return value
+	POP {R14}
+	BX R14
+	
+READ_ROW_2
+	LDR R2, =GPIOD_BASE		; Base address for GPIOD
+	MOV R1, #0xFFFF
+	STR R1, [R2, #GPIO_ODR]	; set all bits high
+	
+	LDR R1, [R2, #GPIO_ODR]	; read Port D ODR
+	BIC R1, R1, #(1<<9)		; set row 2 output
+	STR R1, [R2, #GPIO_ODR]	; write Port D ODR - row 2
+	LDR R2, =GPIOC_BASE		; Base address for GPIOC
+
+READ_4
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<0)			; check PC0 for button press
+	BNE READ_5
+	BL LED_FLASH			; flash green LED
+	MOV R0, #4				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+	
+READ_5
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<1)			; check PC1 for button press
+	BNE READ_6
+	BL LED_FLASH			; flash green LED
+	MOV R0, #5				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+
+READ_6
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<3)			; check PC3 for button press
+	BNE READ_B
+	BL LED_FLASH			; flash green LED
+	MOV R0, #6				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+	
+READ_B
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<4)			; check PC4 for button press
+	BNE READ_ROW_3
+	BL LED_FLASH			; flash green LED
+	MOV R0, #0xB			; return value
+	POP {R14}
+	BX R14
+	
+READ_ROW_3
+	LDR R2, =GPIOD_BASE		; Base address for GPIOD
+	MOV R1, #0xFFFF
+	STR R1, [R2, #GPIO_ODR]	; set all bits high
+	
+	LDR R1, [R2, #GPIO_ODR]	; read Port D ODR
+	BIC R1, R1, #(1<<14)	; set row 3 output
+	STR R1, [R2, #GPIO_ODR]	; write Port D ODR - row 3
+	LDR R2, =GPIOC_BASE		; Base address for GPIOC
+	
+READ_7
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<0)			; check PC0 for button press
+	BNE READ_8
+	BL LED_FLASH			; flash green LED
+	MOV R0, #7				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+	
+READ_8
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<1)			; check PC1 for button press
+	BNE READ_9
+	BL LED_FLASH			; flash green LED
+	MOV R0, #8				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+
+READ_9
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<3)			; check PC3 for button press
+	BNE READ_C
+	BL LED_FLASH			; flash green LED
+	MOV R0, #9				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+
+READ_C
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<4)			; check PC4 for button press
+	BNE READ_ROW_4
+	BL LED_FLASH			; flash green LED
+	MOV R0, #0xC			; display value
+	POP {R14}
+	BX R14
+	
+READ_ROW_4
+	LDR R2, =GPIOD_BASE		; Base address for GPIOD
+	MOV R1, #0xFFFF
+	STR R1, [R2, #GPIO_ODR]	; set all bits high
+	
+	LDR R1, [R2, #GPIO_ODR]	; read Port D ODR
+	BIC R1, R1, #(1<<15)		; set row 2 output
+	STR R1, [R2, #GPIO_ODR]	; write Port D ODR - row 2
+	LDR R2, =GPIOC_BASE		; Base address for GPIOC
+
+; READ '*'
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<0)			; check PC0 for button press
+	BNE READ_0
+	BL LED_FLASH			; flash green LED
+	MOV R0, #0x0E			; return value
+	POP {R14}
+	BX R14
+	
+READ_0
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<1)			; check PC1 for button press
+	BNE READ_HASH
+	BL LED_FLASH			; flash green LED
+	MOV R0, #0				; display value
+	BL DISPLAY_VALUE
+	POP {R14}
+	BX R14
+
+READ_HASH
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<3)			; check PC3 for button press
+	BNE READ_D
+	BL LED_FLASH			; flash green LED
+	MOV R0, #0x0F			; return value
+	POP {R14}
+	BX R14
+	
+READ_D
+	LDR R1, [R2, #GPIO_IDR]	; read Port C IDR
+	TST R1, #(1<<4)			; check PC4 for button press
+	BNE READ_ROW_1
+	BL LED_FLASH			; flash green LED
+	MOV R0, #0xD			; return value
+	POP {R14}
+	BX R14
+	
+	POP {R14}
+	BX R14
+; _____end PROBLEM #9___________________________________________________
 
     ; Area defined for variables, if needed.
 			AREA VARS, DATA, READWRITE
 		ALIGN
 			
 DISPLAY_VAL	DCB 0  ; display value
-	
 	
 	END
 		

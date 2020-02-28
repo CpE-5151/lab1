@@ -14,6 +14,7 @@ extern void DISPLAY_VALUE (uint8_t);
 extern void DELAY_MS (int);
 extern void PB_READ(void);
 extern void LED_WRITE(uint8_t);
+extern uint8_t KEYPAD_READ(void);
 
 int main (void)
 {
@@ -21,14 +22,18 @@ int main (void)
 	PB_INIT();
 	LED_INIT();
 	KEYPAD_INIT();
-	LED_WRITE(1);
-	PB_READ();
-	/*DISPLAY_VALUE(10);
-	LED_WRITE(1);
+	while(1){
+	KEYPAD_READ();
+	}
+	/*while(1){
+	//PB_READ();
+	DISPLAY_VALUE(10);
+	LED_WRITE(0);
 	DELAY_MS(1000);
 	DISPLAY_VALUE(0);
-	LED_WRITE(0);
+	LED_WRITE(1);
+	DELAY_MS(1000);
+	}
 	*/
-	
 	while(1);
 }
