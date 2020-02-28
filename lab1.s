@@ -99,6 +99,11 @@ DISPLAY_VALUE
 
 
 ; PROBLEM #3
+; Delay calculation for 1ms:
+; 1  / 4*10^6 (cycles/second) = 0.25 microseconds/cycle
+; 1 (millisecond) / 0.25 (microseconds/cycle) = 4000 cycles
+; delay loop has 4 instructions, 
+;	so we loop 1000 times per millisecond of delay
 ; _______________________________________________________________________
 DELAY_MS
 	PUSH {R14}
@@ -154,14 +159,12 @@ PB_READ_LOOP
 	LDR R1, [R0, #GPIO_IDR]	; read Port C IDR
 	TST R1, #(1<<13)		; check PC13 for button press
 	MOV R0, #100
-	;BEQ PB_READ_LOOP
 	BEQ PB_READ_DONE
 	BL DELAY_MS
 	
 	LDR R0, =GPIOC_BASE		; Base address for GPIOC
 	LDR R1, [R0, #GPIO_IDR]	; read Port C IDR
 	TST R1, #(1<<13)		; check PC13 for button press
-	;BEQ PB_READ_LOOP
 	BEQ PB_READ_DONE
 	
 	CMP R8, #0
@@ -172,7 +175,7 @@ PB_READ_LOOP
 	MOV R0, R7
 	
 	BL DISPLAY_VALUE
-	;B PB_READ_LOOP
+
 PB_READ_DONE
 	POP {R14}
 	BX R14
@@ -285,18 +288,6 @@ KEYPAD_INIT
 	ORR R2, R2, #(1<<14)		; set PD14 OUTPUT TYPE bit to '1' (open-drain)
 	ORR R2, R2, #(1<<15)		; set PD15 OUTPUT TYPE bit to '1' (open-drain)
 	STR R2, [R0, #GPIO_OTYPER]	; write Port D OUTPUT TYPE register
-	
-;	; set pull-up resistor for PD8, PD9, PD14, PD15
-;	LDR R2, [R0, #GPIO_PUPDR]	; read Port D PU-PD register
-;	BIC R2, R2, #(3 << (2*8))	; clear PC0 PU-PD bits (disabled)
-;	BIC R2, R2, #(3 << (2*9))	; clear PC1 PU-PD bits (disabled)
-;	BIC R2, R2, #(3 << (2*14))	; clear PC3 PU-PD bits (disabled)
-;	BIC R2, R2, #(3 << (2*15))	; clear PC4 PU-PD bits (disabled)
-;	ORR R2, R2, #(1<< (2*8))	; set PD8 PU-PD bits to '01' (pull-up)
-;	ORR R2, R2, #(1<< (2*9))	; set PD9 PU-PD bits to '01' (pull-up)
-;	ORR R2, R2, #(1<< (2*14))	; set PD14 PU-PD bits to '01' (pull-up)
-;	ORR R2, R2, #(1<< (2*15))	; set PD15 PU-PD bits to '01' (pull-up)
-;	STR R2, [R0, #GPIO_PUPDR]	; write Port D PU-PD register
 	
 	POP {R14}
 	BX R14
